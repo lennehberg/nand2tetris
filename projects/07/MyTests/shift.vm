@@ -1,0 +1,3 @@
+push constant 10
+shiftright
+pop local 0

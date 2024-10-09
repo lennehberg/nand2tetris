@@ -282,6 +282,7 @@ class CompilationEngine:
         self.tokenizer.advance()
         self.__write_identifier("", "")
         name = self.tokenizer.identifier()
+        self.sym_table.set_class_name(name)
         # add class identifier to s_class
 
         self.__check_tokenizer()
@@ -392,7 +393,7 @@ class CompilationEngine:
                 # write parameter list -
                 # already advances tokenizer to )
                 self.sym_table.start_subroutine()
-                self.compile_parameter_list()
+                self.compile_parameter_list(kind)
                 # find ) token
                 self.__write_symbol(")")
                 self.__check_tokenizer()
@@ -416,11 +417,14 @@ class CompilationEngine:
             except SymbolError as symbol:
                 raise symbol
 
-    def compile_parameter_list(self) -> None:
+    def compile_parameter_list(self, kind) -> None:
         """Compiles a (possibly empty) parameter list, not including the 
         enclosing "()".
         """
         # Your code goes here!
+        # if kind is method, add +1 to argument counter of sym table
+        if kind == "METHOD":
+            self.sym_table.add_this()
         # while tokenzier has more tokens
         self.out_stream.write("<parameterList>\n")
         while self.tokenizer.has_more_tokens() and not self.__check_closer(")"):
@@ -450,7 +454,7 @@ class CompilationEngine:
 
     def __alloc_constructor(self) -> None:
         field_count = self.sym_table.outer_var_count("FIELD")
-        self.writer.write_push("constant", field_count)
+        self.writer.write_push("constant", field_count if not field_count == 0 else 1)
         self.writer.write_call("Memory.alloc", 1)
         self.writer.write_pop("pointer", 0)
 
@@ -541,6 +545,8 @@ class CompilationEngine:
                     no_semi = False
                 except SymbolError:
                     self.__write_symbol(",")
+                    self.__check_tokenizer()
+                    self.tokenizer.advance()
         # except write symbol ;
         except SymbolError:
             self.__write_symbol(";")
@@ -609,12 +615,18 @@ class CompilationEngine:
                     error_msg += error_arr[i] + "\n"
                 raise CriticalError(error_msg)
 
-    def __get_function_name(self) -> str:
+    def __get_function_name(self, related) -> str:
         """returns the name of the current do function"""
         peak = self.tokenizer.get_look_ahead_token()
-        if peak == "(":
+        if peak == "(" and not related:
+            return f"{self.sym_table.class_name}.{self.tokenizer.identifier()}"
+        elif peak == "(" and related:
             return self.tokenizer.identifier()
         elif peak == ".":
+            if self.sym_table.search_in_cur_scope(self.tokenizer.identifier()):
+                return f"{self.sym_table.type_of(self.tokenizer.identifier())}.{self.tokenizer.get_look_ahead_token(2)}"
+            elif self.sym_table.search_in_out_outer(self.tokenizer.identifier()):
+                return f"{self.sym_table.outer_type_of(self.tokenizer.identifier())}.{self.tokenizer.get_look_ahead_token(2)}"
             return f"{self.tokenizer.identifier()}.{self.tokenizer.get_look_ahead_token(2)}"
 
     def compile_do(self) -> None:
@@ -632,7 +644,7 @@ class CompilationEngine:
             self.writer.write_comment(comment)
             self.tokenizer.advance()
             # write subroutine name
-            callee = self.__get_function_name()
+            callee = self.__get_function_name(related=False)
             self.sym_table.add_func_dec(callee)
             n_args = self.compile_subroutine_term()
             # check subroutine name in declared subroutines
@@ -805,7 +817,10 @@ class CompilationEngine:
             try:
                 if not self.__check_closer(";"):
                     has_statement = True
-                    self.compile_expression()
+                    if self.tokenizer.identifier() == "this":
+                        self.writer.write_push("pointer", 0)
+                    else:
+                        self.compile_expression()
                     self.__check_tokenizer()
                     self.tokenizer.advance()
             except CriticalError:
@@ -826,6 +841,7 @@ class CompilationEngine:
         # Your code goes here!
         # generate if label and write to vm
         if_label = self.__generate_label("IF")
+        true_label = "TRUE_" + if_label
         end_label = "END_" + if_label
         else_label = "ELSE_" + if_label
         has_if_s = False
@@ -850,14 +866,16 @@ class CompilationEngine:
             self.tokenizer.advance()
             # write )
             self.__write_symbol(")")
-            self.writer.write_arithmetic("~")
+            # self.writer.write_arithmetic("~")
             self.__check_tokenizer()
             # write if-goto in vm
-            self.writer.write_if(else_label)
+            self.writer.write_if(true_label)
+            self.writer.write_goto(else_label)
             # self.writer.write_goto(else_label)
             self.tokenizer.advance()
             # write {
             self.__write_symbol("{")
+            self.writer.write_label(true_label)
             self.__check_tokenizer()
             self.tokenizer.advance()
             # write statements - moves cur to {
@@ -896,7 +914,8 @@ class CompilationEngine:
             if has_if_s:
                 self.out_stream.write("</ifStatement>\n")
                 self.writer.write_label(end_label)
-            raise NonCriticalError("Not if/else")
+            else:
+                raise NonCriticalError("Not if/else")
         except SymbolError as symbol:
             raise CriticalError(symbol.message())
         except CriticalError as critical:
@@ -1002,16 +1021,20 @@ class CompilationEngine:
         if self.tokenizer.token_type() == "STRING_CONST":
             # write stringConstant to file
             str_const = self.tokenizer.string_val()
+            str_len = len(str_const) - 1
             self.out_stream.write(f"<stringConstant> {str_const} </stringConstant>\n")
             # call string constructor, save value in temp 1
-            self.writer.write_call("String.new", 0)
-            self.writer.write_pop("temp", 1)
+            self.writer.write_push("constant", str_len)
+            self.writer.write_call("String.new", 1)
+            # self.writer.write_pop("temp", 1)
             # for each character, push the corresponding value according
             # to the Jack Character Set, calling appendChar for each char
-            for char in str_const:
-                self.writer.write_push("temp", 1)
+            for char in str_const[:-1]:
+                # self.writer.write_push("temp", 1)
                 self.writer.write_push("constant", char_set[char])
-                self.writer.write_call("appendChar", 0)
+                self.writer.write_call("String.appendChar", 2)
+                # self.writer.write_pop("temp", 1)
+            # self.writer.write_push("temp", 1)
 
         else:
             raise NonCriticalError("Not stringConstant")
@@ -1023,7 +1046,10 @@ class CompilationEngine:
         keyword_constants = ["THIS", "NULL", "TRUE", "FALSE"]
         try:
             self.__write_keyword(keyword_constants)
-            self.writer.write_push(self.tokenizer.keyword(), 0)
+            if self.tokenizer.keyword() == "THIS":
+                self.writer.write_push("pointer", 0)
+            else:
+                self.writer.write_push(self.tokenizer.keyword(), 0)
         except KeywordError:
             raise NonCriticalError("Not KeywordConstant")
 
@@ -1090,41 +1116,54 @@ class CompilationEngine:
         except NonCriticalError:
             pass
 
-    def __object_method_call(self) -> None:
+    def __object_method_call(self) -> int:
         ident = self.tokenizer.identifier()
         # check if ident in cur scope or outer scope
         if self.sym_table.search_in_cur_scope(ident):
             # push the address of the object onto the stack as argument 0
             self.writer.write_push(self.sym_table.kind_of(ident), self.sym_table.index_of(ident))
+            return 1
         elif self.sym_table.search_in_out_outer(ident):
             self.writer.write_push(self.sym_table.outer_kind_of(ident), self.sym_table.outer_index_of(ident))
+            return 1
+        return 0
 
     def compile_subroutine_term(self, related=False) -> int:
         """Tries to compile a term that is a call to a subroutine"""
-        func_name = self.__get_function_name()
+        func_name = self.__get_function_name(related)
         # if look ahead token is (, compile subroutineCall
         peak = self.tokenizer.get_look_ahead_token()
         n_args: int = 0
         try:
-            if peak == "(":
-                n_args = self.__write_generic_subroutine()
+            if peak == "(" and self.tokenizer.token_type() == "IDENTIFIER":
+                if func_name.split(".")[0] == self.sym_table.class_name:
+                    self.writer.write_push("pointer", 0)
+                    n_args += 1
+                n_args += self.__write_generic_subroutine()
 
             # if look-ahead token is ., subroutine call will come from class name
             elif peak == ".":
                 try:
                     self.__write_var_name()
+                    # if not related:
+                    #     if self.sym_table.search_in_cur_scope(func_name.split(".")[1]) or \
+                    #             self.sym_table.search_in_out_outer(func_name.split(".")[1]):
+                    #         self.writer.write_push("pointer", 0)
                     # check if identifier in symbol table, if true
                     # push the base address of the object onto
-                    self.__object_method_call()
+                    n_args += self.__object_method_call()
                 except IdentifierError:
                     self.__write_class_name_keyword()
-                    self.__object_method_call()
+                    n_args += self.__object_method_call()
                 self.__check_tokenizer()
                 self.tokenizer.advance()
                 self.__write_symbol(".")
                 self.__check_tokenizer()
                 self.tokenizer.advance()
-                n_args = self.compile_subroutine_term(True)
+                n_args += self.compile_subroutine_term(True)
+                # if self.sym_table.search_in_out_outer(func_name.split(".")[1]) or \
+                #         self.sym_table.search_in_cur_scope(func_name.split(".")[1]):
+                #     n_args += 1
             else:
                 raise SubroutineError("Not subroutineCall")
         except CriticalError as critical:

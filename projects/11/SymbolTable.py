@@ -32,6 +32,7 @@ class SymbolTable:
         """Creates a new empty symbol table."""
         # creates a list containing 3 lists, symbolising our table, where:
         # 0 - TYPE, 1 - KIND, 2 - INDEX
+        self.class_name: str = ""
         self.var_table = []
         self.func_table = []
         self.type_count_arr = [0 for _ in range(4)]  # declare a type counter for counting types
@@ -74,6 +75,10 @@ class SymbolTable:
         self.subroutine_table = SymbolTable()
         self.cur = self.subroutine_table
 
+    def set_class_name(self, name) -> None:
+        """sets class name for scope"""
+        self.class_name = name
+
     def end_subroutine(self) -> None:
         """Ends the compilation of the current subroutine, returning cur to self"""
         self.cur = self
@@ -114,7 +119,7 @@ class SymbolTable:
 
     def outer_var_count(self, kind: str):
         kind = self.__get_kind(kind)
-        return self.cur.type_count_arr[kind]
+        return self.type_count_arr[kind]
 
     def kind_of(self, name: str) -> str:
         """
@@ -221,6 +226,9 @@ class SymbolTable:
         if item:
             return True
         return False
+
+    def add_this(self) -> None:
+        self.cur.type_count_arr[ARG] += 1
 
     def add_func_dec(self, name: str) -> None:
         if name not in self.cur.func_table:

@@ -1,0 +1,110 @@
+// This file is part of nand2tetris, as taught in The Hebrew University, and
+// was written by Aviv Yaish. It is an extension to the specifications given
+// [here](https://www.nand2tetris.org) (Shimon Schocken and Noam Nisan, 2017),
+// as allowed by the Creative Common Attribution-NonCommercial-ShareAlike 3.0
+// Unported [License](https://creativecommons.org/licenses/by-nc-sa/3.0/).
+// File name: projects/02/ALU.hdl
+
+/**
+ * The ALU (Arithmetic Logic Unit).
+ * Computes one of the following functions:
+ * x+y, x-y, y-x, 0, 1, -1, x, y, -x, -y, !x, !y,
+ * x+1, y+1, x-1, y-1, x&y, x|y on two 16-bit inputs, 
+ * according to 6 input bits denoted zx,nx,zy,ny,f,no.
+ * In addition, the ALU computes two 1-bit outputs:
+ * if the ALU output == 0, zr is set to 1; otherwise zr is set to 0;
+ * if the ALU output < 0, ng is set to 1; otherwise ng is set to 0.
+ */
+
+// Implementation: the ALU logic manipulates the x and y inputs
+// and operates on the resulting values, as follows:
+// if (zx == 1) set x = 0        // 16-bit constant
+// if (nx == 1) set x = !x       // bitwise not
+// if (zy == 1) set y = 0        // 16-bit constant
+// if (ny == 1) set y = !y       // bitwise not
+// if (f == 1)  set out = x + y  // integer 2's complement addition
+// if (f == 0)  set out = x & y  // bitwise and
+// if (no == 1) set out = !out   // bitwise not
+// if (out == 0) set zr = 1
+// if (out < 0) set ng = 1
+
+CHIP ALU {
+    IN  
+        x[16], y[16],  // 16-bit inputs        
+        zx, // zero the x input?
+        nx, // negate the x input?
+        zy, // zero the y input?
+        ny, // negate the y input?
+        f,  // compute out = x + y (if 1) or x & y (if 0)
+        no; // negate the out output?
+
+    OUT 
+        out[16], // 16-bit output
+        zr, // 1 if (out == 0), 0 otherwise
+        ng; // 1 if (out < 0),  0 otherwise
+
+    PARTS:
+    // You're advised to work on the ALU chip in two steps:
+    // - First, without handling status outputs (ALU-nostat)
+    // - Then, adding the missing functionality for the "full" chip (ALU). 
+    // You only need to submit the "full" ALU, no need to submit the partial
+    // implementation (ALU-nostat).
+    // Put your code here:
+
+   /* // ZERO the x input:
+    Not(in=zx, out=notzx);
+    And16(a=x. b[0..15]=notzx, out=ozx1);
+    And16(a=x, b[0..15]=zx, out=ozx2);
+    Or16(a=ozx1, b=ozx2, out=ozxf);
+	
+    // NEGATE the x input:
+    Xor16(a=x, b[0..15]=nx, out=onx);
+    
+    // ZERO the y input:
+    Not(in=zy, out=notzy);
+    And16(a=y, b[0..15]=notzy, out=ozy1);
+    And16(a=y, b[0..15]=zy, out=ozy2);
+    Or16(a=ozy1, b=ozy2, out=ozyf);
+
+    // NEGATE the y input:
+    Xor16(a=y, b[0..15]=ny, out=ony);
+    
+    // Mux4Way between the negated or zero-ed
+    // out values of x and x, where:
+    // sel[0] = zx, sel[1] = nx,
+    // x      zx      nx
+    // x       0       0
+    // 0       1       0 
+    // !x      0       1
+    // -1       1       1
+    */
+    // NEGATE x
+    Not16(in=x, out=notx);
+    Mux4Way16(a=x, b[0..15]=false, c=notx, d[0..15]=true, sel[0]=zx, sel[1]=nx, out=ox);
+    
+    // NEGATE y
+    Not16(in=y, out=noty);
+    Mux4Way16(a=y, b[0..15]=false, c=noty, d[0..15]=true, sel[0]=zy, sel[1]=ny, out=oy);
+
+    // x+y or x&y according to f
+    Add16(a=ox, b=oy, out=xaddy);
+    And16(a=ox, b=oy, out=xandy);
+
+    Mux16(a=xandy, b=xaddy, sel=f, out=aout);
+
+    // NEGATE out
+    Not16(in=aout, out=naout);
+    Mux16(a=aout, b=naout, sel=no, out=outf, out=out);
+
+    // set status of out to negative if out<0:
+    And16(a[0..15]=true, b=outf, out[15]=ng);
+
+    // set status of out to 0 if out == 0:
+    // Not16(in=outf, out=noutf);
+    And16(a=outf, b=outf, out[0..7]=outfh, out[8..15]=outsh);
+    Or8Way(in=outfh, out=or1);
+    Or8Way(in=outsh, out=or2);
+    Not(in=or1, out=nor1);
+    Not(in=or2, out=nor2);
+    And(a=nor1, b=nor2, out=zr);
+}

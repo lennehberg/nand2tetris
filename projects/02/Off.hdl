@@ -1,0 +1,12 @@
+/**
+ * Always off gate
+ * out = 0
+ */
+
+CHIP Off{
+    IN a, b;
+    OUT out;
+   
+    PARTS:
+    
+}

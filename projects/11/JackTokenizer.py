@@ -162,7 +162,7 @@ class JackTokenizer:
                     line = ""
 
             if line.strip():
-                words = re.findall(r'\w+|[{}()[\].,;+\-*/&|<>=~^#"?:]', line)
+                words = re.findall(r'\w+:*|[{}()[\].,;+\-*/&|<>=~^#"?]', line)
                 result.extend(words)
 
         self.input_lines = result

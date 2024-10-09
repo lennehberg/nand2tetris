@@ -1,0 +1,74 @@
+// This file is part of nand2tetris, as taught in The Hebrew University, and
+// was written by Aviv Yaish. It is an extension to the specifications given
+// [here](https://www.nand2tetris.org) (Shimon Schocken and Noam Nisan, 2017),
+// as allowed by the Creative Common Attribution-NonCommercial-ShareAlike 3.0
+// Unported [License](https://creativecommons.org/licenses/by-nc-sa/3.0/).
+
+
+// The ExtendAlu chip is an extension of the standard ALU which also supports
+// shift operations.
+// The inputs of the extended ALU are instruction[9], x[16], y[16].
+// The "ng" and "zr" output pins behave the same as in the regular ALU.
+// The "out" output is defined as follows:
+// If instruction[8]=1 and instruction[7]=1 the output is identical to the 
+// regular ALU, where:
+// instruction[5]=zx, instruction[4]=nx, ..., instruction[0]=no
+// Else, if instruction[8]=0 and instruction[7]=1, the output is a shift:
+// - If instruction[4] == 0, the input "y" will be shifted, otherwise "x".
+// - If instruction[5] == 0, the shift will be a right-shift, otherwise left.
+// - All other inputs are undefined.
+
+CHIP ExtendAlu {
+     IN x[16], y[16], instruction[9];
+     OUT out[16], zr, ng;
+     
+     PARTS:
+     // Put your code here:
+     And(a=instruction[8], b=instruction[7], out=w2);
+     Not(in=instruction[8], out=noet);
+     And(a=noet, b=instruction[7], out=w1);
+     
+     // compute x and y for ALU inputs
+     And16(a=x, b[0]=w2, b[1]=w2, b[2]=w2, b[3]=w2,
+                b[4]=w2, b[5]=w2, b[6]=w2, b[7]=w2,
+	        b[8]=w2, b[9]=w2, b[10]=w2, b[11]=w2,
+                b[12]=w2, b[13]=w2, b[14]=w2, b[15]=w2, out=normx);
+
+     And16(a=y, b[0]=w2, b[1]=w2, b[2]=w2, b[3]=w2,
+                b[4]=w2, b[5]=w2, b[6]=w2, b[7]=w2,  
+                b[8]=w2, b[9]=w2, b[10]=w2, b[11]=w2,
+                b[12]=w2, b[13]=w2, b[14]=w2, b[15]=w2, out=normy);
+
+     And16(a=x, b[0]=w1, b[1]=w1, b[2]=w1, b[3]=w1,
+                b[4]=w1, b[5]=w1, b[6]=w1, b[7]=w1,  
+                b[8]=w1, b[9]=w1, b[10]=w1, b[11]=w1,
+                b[12]=w1, b[13]=w1, b[14]=w1, b[15]=w1 , out=extx);
+
+     And16(a=y, b[0]=w1, b[1]=w1, b[2]=w1, b[3]=w1,
+                b[4]=w1, b[5]=w1, b[6]=w1, b[7]=w1,  
+                b[8]=w1, b[9]=w1, b[10]=w1, b[11]=w1,
+                b[12]=w1, b[13]=w1, b[14]=w1, b[15]=w1, out=exty);
+
+     ALU(x=normx, y=normy, zx=instruction[5], nx=instruction[4], 
+     			   zy=instruction[3], ny=instruction[2],
+			   f=instruction[1], no=instruction[0], out=outn, zr=zrn, ng=ngn);
+     Mux16(a=y, b=x, sel=instruction[4], out=xoy);
+     ShiftRight(in=xoy, out=right);
+     ShiftLeft(in=xoy, out=left);
+     Mux16(a=right, b=left, sel=instruction[5], out=shifted);
+     
+     Mux16(a=outn, b=shifted, sel=w1, out=ret, out=out);
+
+     // set status of out to negative if out<0:
+     And16(a[0..15]=true, b=ret, out[15]=ng);
+
+     // set status of out to 0 if out == 0:
+     // Not16(in=outf, out=noutf);
+     And16(a=ret, b=ret, out[0..7]=outfh, out[8..15]=outsh);
+     Or8Way(in=outfh, out=or1);
+     Or8Way(in=outsh, out=or2);
+     Not(in=or1, out=nor1);
+     Not(in=or2, out=nor2);
+     And(a=nor1, b=nor2, out=zr);
+
+}

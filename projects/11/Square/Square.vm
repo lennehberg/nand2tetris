@@ -1,5 +1,5 @@
 function Square.new 0
-push constant 0
+push constant 3
 call Memory.alloc 1
 pop pointer 0
 // let x = Ax 
@@ -12,16 +12,17 @@ pop this 1
 push argument 2
 pop this 2
 // do draw ( ) 
-call draw 0
+push pointer 0
+call Square.draw 1
 pop temp 0
 // return this 
-push this 0
+push pointer 0
 return
 function Square.dispose 0
 push argument 0
 pop pointer 0
 // do Memory . deAlloc ( this ) 
-push this 0
+push pointer 0
 call Memory.deAlloc 1
 pop temp 0
 // return 
@@ -31,8 +32,8 @@ function Square.draw 0
 push argument 0
 pop pointer 0
 // do Screen . setColor ( true ) 
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
 // do Screen . drawRectangle ( x , y , x + size , y + size ) 
@@ -74,21 +75,25 @@ function Square.incSize 0
 push argument 0
 pop pointer 0
 // if ( ( ( y + size ) < 254 ) & ( ( x + size ) < 510 ) ) 
+push pointer 0
 push this 1
 push this 2
 add
 push constant 254
 lt
+push pointer 0
 push this 0
 push this 2
 add
 push constant 510
 lt
 and
-not
-if-goto ELSE_IF.4
+if-goto TRUE_IF.4
+goto ELSE_IF.4
+label TRUE_IF.4
 // do erase ( ) 
-call erase 0
+push pointer 0
+call Square.erase 1
 pop temp 0
 // let size = size + 2 
 push this 2
@@ -96,7 +101,8 @@ push constant 2
 add
 pop this 2
 // do draw ( ) 
-call draw 0
+push pointer 0
+call Square.draw 1
 pop temp 0
 goto END_IF.4
 label ELSE_IF.4
@@ -111,10 +117,12 @@ pop pointer 0
 push this 2
 push constant 2
 gt
-not
-if-goto ELSE_IF.5
+if-goto TRUE_IF.6
+goto ELSE_IF.6
+label TRUE_IF.6
 // do erase ( ) 
-call erase 0
+push pointer 0
+call Square.erase 1
 pop temp 0
 // let size = size - 2 
 push this 2
@@ -122,11 +130,12 @@ push constant 2
 sub
 pop this 2
 // do draw ( ) 
-call draw 0
+push pointer 0
+call Square.draw 1
 pop temp 0
-goto END_IF.5
-label ELSE_IF.5
-label END_IF.5
+goto END_IF.6
+label ELSE_IF.6
+label END_IF.6
 // return 
 push constant 0
 return
@@ -137,8 +146,9 @@ pop pointer 0
 push this 1
 push constant 1
 gt
-not
-if-goto ELSE_IF.6
+if-goto TRUE_IF.8
+goto ELSE_IF.8
+label TRUE_IF.8
 // do Screen . setColor ( false ) 
 push constant 0
 call Screen.setColor 1
@@ -164,8 +174,8 @@ push constant 2
 sub
 pop this 1
 // do Screen . setColor ( true ) 
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
 // do Screen . drawRectangle ( x , y , x + size , y + 1 ) 
@@ -179,9 +189,9 @@ push constant 1
 add
 call Screen.drawRectangle 4
 pop temp 0
-goto END_IF.6
-label ELSE_IF.6
-label END_IF.6
+goto END_IF.8
+label ELSE_IF.8
+label END_IF.8
 // return 
 push constant 0
 return
@@ -194,8 +204,9 @@ push this 2
 add
 push constant 254
 lt
-not
-if-goto ELSE_IF.7
+if-goto TRUE_IF.10
+goto ELSE_IF.10
+label TRUE_IF.10
 // do Screen . setColor ( false ) 
 push constant 0
 call Screen.setColor 1
@@ -217,8 +228,8 @@ push constant 2
 add
 pop this 1
 // do Screen . setColor ( true ) 
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
 // do Screen . drawRectangle ( x , ( y + size ) - 1 , x + size , y + size ) 
@@ -236,9 +247,9 @@ push this 2
 add
 call Screen.drawRectangle 4
 pop temp 0
-goto END_IF.7
-label ELSE_IF.7
-label END_IF.7
+goto END_IF.10
+label ELSE_IF.10
+label END_IF.10
 // return 
 push constant 0
 return
@@ -249,8 +260,9 @@ pop pointer 0
 push this 0
 push constant 1
 gt
-not
-if-goto ELSE_IF.8
+if-goto TRUE_IF.12
+goto ELSE_IF.12
+label TRUE_IF.12
 // do Screen . setColor ( false ) 
 push constant 0
 call Screen.setColor 1
@@ -276,8 +288,8 @@ push constant 2
 sub
 pop this 0
 // do Screen . setColor ( true ) 
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
 // do Screen . drawRectangle ( x , y , x + 1 , y + size ) 
@@ -291,9 +303,9 @@ push this 2
 add
 call Screen.drawRectangle 4
 pop temp 0
-goto END_IF.8
-label ELSE_IF.8
-label END_IF.8
+goto END_IF.12
+label ELSE_IF.12
+label END_IF.12
 // return 
 push constant 0
 return
@@ -306,8 +318,9 @@ push this 2
 add
 push constant 510
 lt
-not
-if-goto ELSE_IF.9
+if-goto TRUE_IF.14
+goto ELSE_IF.14
+label TRUE_IF.14
 // do Screen . setColor ( false ) 
 push constant 0
 call Screen.setColor 1
@@ -329,8 +342,8 @@ push constant 2
 add
 pop this 0
 // do Screen . setColor ( true ) 
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
 // do Screen . drawRectangle ( ( x + size ) - 1 , y , x + size , y + size ) 
@@ -348,9 +361,9 @@ push this 2
 add
 call Screen.drawRectangle 4
 pop temp 0
-goto END_IF.9
-label ELSE_IF.9
-label END_IF.9
+goto END_IF.14
+label ELSE_IF.14
+label END_IF.14
 // return 
 push constant 0
 return

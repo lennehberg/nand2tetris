@@ -1,0 +1,15 @@
+/**
+ * Always-On gate
+ * out = 1 
+ */
+
+CHIP On{
+    IN a, b;
+    OUT out;
+
+    PARTS:
+    Nand(a=a, b=b, out=anandb);
+    Or(a=a, b=b, out=aorb);
+
+    Or(a=anandb, b=aorb, out=out);
+}

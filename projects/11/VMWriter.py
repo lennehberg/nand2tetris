@@ -57,12 +57,13 @@ class VMWriter:
             index (int): the index to push to.
         """
         if segment == "TRUE":
-            self.out_stream.write("push constant 1\n")
-            self.out_stream.write("neg\n")
+            self.out_stream.write("push constant 0\n")
+            self.out_stream.write("not\n")
         elif segment == "FALSE" or segment == "NULL":
             self.out_stream.write("push constant 0\n")
         elif segment == "FIELD":
             self.out_stream.write(f"push this {index}\n")
+
         else:
             segment = self.__get_segment(segment)
             self.out_stream.write(f"push {segment} {index}\n")
